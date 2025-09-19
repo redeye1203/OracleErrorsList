@@ -44,25 +44,32 @@ jobs:
     - name: Install dependencies (Linux)
       if: runner.os == 'Linux'
       run: |
-        # 安裝 Linux 系統依賴
+        # 安裝 Linux 系統依賴 (適用於 Ubuntu 24.04+)
         sudo apt-get update
         sudo apt-get install -y \
           xvfb \
           libgl1-mesa-dev \
           libgl1 \
           libglib2.0-0 \
-          libegl1-mesa \
+          libegl1 \
           libxrandr2 \
           libxss1 \
           libxcursor1 \
           libxcomposite1 \
-          libasound2 \
+          libasound2t64 \
           libxi6 \
           libxtst6 \
           libsdl2-dev \
           libpulse-dev \
           libgstreamer1.0-dev \
-          libgstreamer-plugins-base1.0-dev
+          libgstreamer-plugins-base1.0-dev \
+          libxkbcommon0 \
+          libxkbcommon-x11-0 \
+          libfontconfig1 \
+          libfreetype6 \
+          libx11-6 \
+          libxext6 \
+          libxrender1
         
         # 安裝 Python 依賴
         python -m pip install --upgrade pip
