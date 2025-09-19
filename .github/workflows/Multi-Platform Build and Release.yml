@@ -182,6 +182,10 @@ jobs:
     - name: Build with PyInstaller (Windows)
       if: runner.os == 'Windows'
       run: |
+        # 設置 Windows 無頭環境變數（使用 mock backend 避免 OpenGL 問題）
+        $env:KIVY_WINDOW = "sdl2"
+        $env:KIVY_GL_BACKEND = "mock"
+        
         # 查找資料檔案
         if (Test-Path error_codes.txt) {
           $dataFile = "error_codes.txt;."

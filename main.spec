@@ -81,7 +81,8 @@ pyz = PYZ(a.pure, a.zipped_data, cipher=None)
 
 # 根據平台設置不同的參數
 if sys.platform == 'win32':
-    # Windows 特定設置
+    # Windows 特定設置 - 使用 mock backend 避免 OpenGL 問題
+    os.environ['KIVY_GL_BACKEND'] = 'mock'
     binaries_to_add = []
     if sdl2 and glew:
         binaries_to_add = [Tree(p) for p in (sdl2.dep_bins + glew.dep_bins)]
