@@ -1588,21 +1588,18 @@ error_dict = {
     "UserWarning": "用戶代碼生成的警告。",
     "IOError": "Input/output異常。",
 }
+
+
 def resource_path(relative_path):
-    """ Get the absolute path to the resource, works for dev and for PyInstaller. """
     try:
-        # PyInstaller creates a temp folder and stores the path in _MEIPASS
         base_path = sys._MEIPASS
     except Exception:
         base_path = os.path.abspath(".")
-
     return os.path.join(base_path, relative_path)
 
-# 使用 resource_path 函数获取文件路径
-# error_file_path = resource_path('error_codes.txt')
-error_file_path = resource_path('error_codes.txt')
+
 # 打開和讀取txt文件
-with open(error_file_path, 'r', encoding='utf-8') as file:
+with open(resource_path('error_codes.txt'), 'r', encoding='utf-8') as file:
     error_dict1 = json.load(file)
 
 class ErrorApp(BoxLayout):

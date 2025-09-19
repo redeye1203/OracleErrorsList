@@ -109,18 +109,27 @@ jobs:
         if [ -f main.spec ]; then
           pyinstaller main.spec --clean
         else
-          # 使用命令行選項
+          # 使用命令行選項，包含所有必要的 hidden imports 和資料檔案
           pyinstaller main.py \
             --onefile \
             --clean \
+            --add-data "error_codes.txt:." \
             --hidden-import=kivy.core.window.window_sdl2 \
+            --hidden-import=kivy.core.window.window_x11 \
             --hidden-import=kivy.core.image.img_tex \
             --hidden-import=kivy.core.image.img_dds \
             --hidden-import=kivy.core.text.text_layout \
             --hidden-import=kivy.core.audio.audio_sdl2 \
+            --hidden-import=kivy.input.providers.mouse \
+            --hidden-import=kivy.input.postproc.calibration \
+            --hidden-import=kivy.input.postproc.dejitter \
+            --hidden-import=kivy.input.postproc.doubletap \
+            --hidden-import=kivy.input.postproc.ignorelist \
+            --hidden-import=kivy.input.postproc.retaintouch \
+            --hidden-import=kivy.input.postproc.tripletap \
             --exclude-module=kivy.core.camera \
-            --exclude-module=kivy.input.providers.mtdev \
-            --exclude-module=kivy.input.providers.hidinput
+            --exclude-module=kivy.core.spelling \
+            --exclude-module=kivy.core.video
         fi
 
     - name: Build with PyInstaller (Windows)
@@ -129,7 +138,7 @@ jobs:
         if (Test-Path main.spec) {
           pyinstaller main.spec --clean
         } else {
-          pyinstaller main.py --onefile --clean --noconsole
+          pyinstaller main.py --onefile --clean --noconsole --add-data "error_codes.txt;."
         }
 
     - name: Build with PyInstaller (macOS)
@@ -138,7 +147,7 @@ jobs:
         if [ -f main.spec ]; then
           pyinstaller main.spec --clean
         else
-          pyinstaller main.py --onefile --clean --noconsole
+          pyinstaller main.py --onefile --clean --noconsole --add-data "error_codes.txt:."
         fi
 
     - name: Rename executable (Linux)
