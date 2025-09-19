@@ -48,20 +48,21 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y \
           xvfb \
-          libgl1-mesa-glx \
+          libgl1-mesa-dev \
+          libgl1 \
           libglib2.0-0 \
-          libxcb-xinerama0 \
-          libxcb-cursor0 \
-          libxkbcommon-x11-0 \
-          libxcb-icccm4 \
-          libxcb-image0 \
-          libxcb-keysyms1 \
-          libxcb-randr0 \
-          libxcb-render0 \
-          libxcb-render-util0 \
-          libxcb-shape0 \
-          libxcb-sync1 \
-          libxcb-xfixes0
+          libegl1-mesa \
+          libxrandr2 \
+          libxss1 \
+          libxcursor1 \
+          libxcomposite1 \
+          libasound2 \
+          libxi6 \
+          libxtst6 \
+          libsdl2-dev \
+          libpulse-dev \
+          libgstreamer1.0-dev \
+          libgstreamer-plugins-base1.0-dev
         
         # 安裝 Python 依賴
         python -m pip install --upgrade pip
