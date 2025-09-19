@@ -318,9 +318,9 @@ jobs:
       run: |
         if [[ "${{ steps.vars.outputs.tag_name }}" == "latest" ]]; then
           cat << EOF > release_notes.md
-        ## Latest Development Build
+        ## 最後測試打包版本
         
-        This is an automated build from the latest commit on the main branch.
+        這個版本是作者更新的最後版本，可能穩定度較低。
         
         **Commit:** ${{ steps.vars.outputs.commit_sha }}
         **Build Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')

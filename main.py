@@ -1611,7 +1611,7 @@ class ErrorApp(BoxLayout):
         # Dynamically add the font file path
         resource_add_path(os.path.dirname(__file__))
         # 將kivy預設的字體替換成指定的中文字體
-        LabelBase.register('Roboto','NotoSerifTC-VariableFont_wght.ttf')
+        LabelBase.register('Roboto','fonts/NotoSerifTC-VariableFont_wght.ttf')
         # 標籤用於說明輸入框的作用
         self.label = Label(text="請輸入錯誤代碼:", size_hint_y=None, height=50)
         self.add_widget(self.label)
