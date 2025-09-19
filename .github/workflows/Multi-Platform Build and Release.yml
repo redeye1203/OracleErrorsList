@@ -36,7 +36,16 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Check project structure
+    - name: Check project structure (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        echo "Current directory contents:"
+        dir
+        echo "Looking for data files:"
+        Get-ChildItem -Name *.txt, *.json, *.csv -ErrorAction SilentlyContinue | Select-Object -First 10
+
+    - name: Check project structure (Unix)
+      if: runner.os != 'Windows'
       run: |
         echo "Current directory contents:"
         ls -la
