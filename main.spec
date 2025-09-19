@@ -1,6 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 import sys
 import os
+import glob
 
 # 只在 Windows 平台導入 kivy_deps
 if sys.platform == 'win32':
@@ -27,13 +28,22 @@ except ImportError:
     kivy_hookspath = []
     kivy_runtime_hooks = []
 
+# 動態查找資料檔案
+data_files = []
+for pattern in ['*.txt', '*.json', '*.csv', '*.yaml', '*.yml']:
+    for file in glob.glob(pattern):
+        data_files.append((file, '.'))
+        print(f"Found data file: {file}")
+
+# 如果沒有找到任何資料檔案，添加一個警告
+if not data_files:
+    print("Warning: No data files found matching common patterns")
+
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[
-        ('error_codes.txt', '.'),  # 包含你的資料檔案
-    ],
+    datas=data_files,
     hiddenimports=kivy_hiddenimports + [
         'kivy.core.window.window_sdl2',
         'kivy.core.window.window_x11',
@@ -59,9 +69,6 @@ a = Analysis(
         'kivy.core.camera',
         'kivy.core.spelling',
         'kivy.core.video',
-        'kivy.input.providers.mouse',
-        'kivy.input.providers.mtdev',
-        'kivy.input.providers.hidinput',
         'kivy.input.providers.linuxwacom',
     ],
     win_no_prefer_redirects=False,
@@ -101,7 +108,8 @@ if sys.platform == 'win32':
         entitlements_file=None,
     )
 elif sys.platform == 'darwin':
-    # macOS 特定設置
+    # macOS 特定設置 - 使用 mock GL backend
+    os.environ['KIVY_GL_BACKEND'] = 'mock'
     exe = EXE(
         pyz,
         a.scripts,
