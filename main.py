@@ -1668,6 +1668,7 @@ class ErrorApp(BoxLayout):
 
 
 class VBSErrorApp(App):
+    title = 'Oracle Error 查詢系統'
     def build(self):
         return ErrorApp()
 
