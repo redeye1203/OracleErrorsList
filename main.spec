@@ -1,18 +1,38 @@
 # -*- mode: python ; coding: utf-8 -*-
-from kivy_deps import sdl2, glew
-from kivy.tools.packaging.pyinstaller_hooks import get_deps_minimal, get_deps_all, hookspath, runtime_hooks
 import sys
 import os
 
-# 取得 Kivy 相關的隱藏導入和數據文件
-kivy_deps = get_deps_minimal()
+# 只在 Windows 平台導入 kivy_deps
+if sys.platform == 'win32':
+    try:
+        from kivy_deps import sdl2, glew
+    except ImportError:
+        print("Warning: kivy_deps not found, building without Windows dependencies")
+        sdl2 = None
+        glew = None
+else:
+    sdl2 = None
+    glew = None
+
+# 導入 Kivy 工具
+try:
+    from kivy.tools.packaging.pyinstaller_hooks import get_deps_minimal, get_deps_all, hookspath, runtime_hooks
+    kivy_deps = get_deps_minimal()
+    kivy_hiddenimports = kivy_deps['hiddenimports']
+    kivy_hookspath = hookspath()
+    kivy_runtime_hooks = runtime_hooks()
+except ImportError:
+    print("Warning: Kivy packaging tools not found, using basic configuration")
+    kivy_hiddenimports = []
+    kivy_hookspath = []
+    kivy_runtime_hooks = []
 
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
     datas=[],
-    hiddenimports=kivy_deps['hiddenimports'] + [
+    hiddenimports=kivy_hiddenimports + [
         'kivy.core.window.window_sdl2',
         'kivy.core.image.img_tex',
         'kivy.core.image.img_dds',
@@ -20,9 +40,9 @@ a = Analysis(
         'kivy.core.audio.audio_sdl2',
         'kivy.core.clipboard.clipboard_sdl2',
     ],
-    hookspath=hookspath(),
+    hookspath=kivy_hookspath,
     hooksconfig={},
-    runtime_hooks=runtime_hooks(),
+    runtime_hooks=kivy_runtime_hooks,
     excludes=[
         'kivy.core.camera',
         'kivy.core.spelling',
@@ -42,13 +62,18 @@ pyz = PYZ(a.pure, a.zipped_data, cipher=None)
 
 # 根據平台設置不同的參數
 if sys.platform == 'win32':
+    # Windows 特定設置
+    binaries_to_add = []
+    if sdl2 and glew:
+        binaries_to_add = [Tree(p) for p in (sdl2.dep_bins + glew.dep_bins)]
+
     exe = EXE(
         pyz,
         a.scripts,
         a.binaries,
         a.zipfiles,
         a.datas,
-        *[Tree(p) for p in (sdl2.dep_bins + glew.dep_bins)],
+        *binaries_to_add,
         name='main',
         debug=False,
         bootloader_ignore_signals=False,
@@ -64,6 +89,7 @@ if sys.platform == 'win32':
         entitlements_file=None,
     )
 elif sys.platform == 'darwin':
+    # macOS 特定設置
     exe = EXE(
         pyz,
         a.scripts,
@@ -85,6 +111,7 @@ elif sys.platform == 'darwin':
         entitlements_file=None,
     )
 else:  # Linux
+    # Linux 特定設置
     exe = EXE(
         pyz,
         a.scripts,
