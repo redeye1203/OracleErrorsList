@@ -1588,21 +1588,18 @@ error_dict = {
     "UserWarning": "用戶代碼生成的警告。",
     "IOError": "Input/output異常。",
 }
+
+
 def resource_path(relative_path):
-    """ Get the absolute path to the resource, works for dev and for PyInstaller. """
     try:
-        # PyInstaller creates a temp folder and stores the path in _MEIPASS
         base_path = sys._MEIPASS
     except Exception:
         base_path = os.path.abspath(".")
-
     return os.path.join(base_path, relative_path)
 
-# 使用 resource_path 函数获取文件路径
-# error_file_path = resource_path('error_codes.txt')
-error_file_path = resource_path('error_codes.txt')
+
 # 打開和讀取txt文件
-with open(error_file_path, 'r', encoding='utf-8') as file:
+with open(resource_path('error_codes.txt'), 'r', encoding='utf-8') as file:
     error_dict1 = json.load(file)
 
 class ErrorApp(BoxLayout):
@@ -1614,7 +1611,7 @@ class ErrorApp(BoxLayout):
         # Dynamically add the font file path
         resource_add_path(os.path.dirname(__file__))
         # 將kivy預設的字體替換成指定的中文字體
-        LabelBase.register('Roboto','NotoSerifTC-VariableFont_wght.ttf')
+        LabelBase.register('Roboto','fonts/NotoSerifTC-VariableFont_wght.ttf')
         # 標籤用於說明輸入框的作用
         self.label = Label(text="請輸入錯誤代碼:", size_hint_y=None, height=50)
         self.add_widget(self.label)
@@ -1671,6 +1668,7 @@ class ErrorApp(BoxLayout):
 
 
 class VBSErrorApp(App):
+    title = 'Oracle Error 查詢系統'
     def build(self):
         return ErrorApp()
 

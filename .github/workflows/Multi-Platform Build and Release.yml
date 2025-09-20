@@ -1,0 +1,364 @@
+name: Multi-Platform Build and Release
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+            executable: main
+            rename_cmd: mv dist/main dist/main-linux-x64
+          - os: windows-latest
+            platform: windows
+            arch: x64
+            executable: main.exe
+            rename_cmd: Move-Item dist\main.exe dist\main-windows-x64.exe
+          - os: macos-latest
+            platform: macos
+            arch: x64
+            executable: main
+            rename_cmd: mv dist/main dist/main-macos-x64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Check project structure (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        echo "Current directory contents:"
+        dir
+        echo "Looking for data files:"
+        Get-ChildItem -Name *.txt, *.json, *.csv, *.ttf, *.otf -ErrorAction SilentlyContinue | Select-Object -First 20
+        echo "Looking for fonts directory:"
+        if (Test-Path fonts) { echo "fonts directory exists"; dir fonts } else { echo "No fonts directory" }
+
+    - name: Check project structure (Unix)
+      if: runner.os != 'Windows'
+      run: |
+        echo "Current directory contents:"
+        ls -la
+        echo "Looking for data files:"
+        find . -name "*.txt" -o -name "*.json" -o -name "*.csv" -o -name "*.ttf" -o -name "*.otf" | head -20
+        echo "Looking for fonts directory:"
+        if [ -d fonts ]; then echo "fonts directory exists"; ls -la fonts/; else echo "No fonts directory"; fi
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+
+    - name: Install dependencies (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        # 安裝 Linux 系統依賴 (適用於 Ubuntu 24.04+)
+        sudo apt-get update
+        sudo apt-get install -y \
+          xvfb \
+          libgl1-mesa-dev \
+          libgl1 \
+          libglib2.0-0 \
+          libegl1 \
+          libxrandr2 \
+          libxss1 \
+          libxcursor1 \
+          libxcomposite1 \
+          libasound2t64 \
+          libxi6 \
+          libxtst6 \
+          libsdl2-dev \
+          libpulse-dev \
+          libgstreamer1.0-dev \
+          libgstreamer-plugins-base1.0-dev \
+          libxkbcommon0 \
+          libxkbcommon-x11-0 \
+          libfontconfig1 \
+          libfreetype6 \
+          libx11-6 \
+          libxext6 \
+          libxrender1
+        
+        # 安裝 Python 依賴
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+    - name: Install dependencies (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+    - name: Install dependencies (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+        # 安裝 Windows 特定的 Kivy 依賴
+        pip install kivy_deps.sdl2 kivy_deps.glew kivy_deps.gstreamer
+        if (Test-Path requirements.txt) { pip install -r requirements.txt }
+
+    - name: Build with PyInstaller (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        # 設置環境變數避免 X11 錯誤
+        export DISPLAY=:99.0
+        export KIVY_WINDOW=sdl2
+        export KIVY_GL_BACKEND=gl
+        export QT_QPA_PLATFORM=offscreen
+        
+        # 啟動虛擬 X 服務器
+        Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+        sleep 3
+        
+        # 構建資料檔案參數
+        DATA_ARGS=""
+        
+        # 檢查並添加文本/JSON 檔案
+        if [ -f error_codes.txt ]; then
+          DATA_ARGS="$DATA_ARGS --add-data error_codes.txt:."
+        fi
+        for file in *.txt *.json; do
+          if [ -f "$file" ] && [ "$file" != "error_codes.txt" ]; then
+            DATA_ARGS="$DATA_ARGS --add-data $file:."
+          fi
+        done
+        
+        # 檢查並添加字體檔案
+        if [ -f NotoSerifTC-VariableFont_wght.ttf ]; then
+          DATA_ARGS="$DATA_ARGS --add-data NotoSerifTC-VariableFont_wght.ttf:."
+        fi
+        if [ -d fonts ]; then
+          DATA_ARGS="$DATA_ARGS --add-data fonts:fonts"
+        fi
+        
+        # 檢查是否存在 spec 文件，如果有就使用它
+        if [ -f main.spec ]; then
+          pyinstaller main.spec --clean
+        else
+          # 使用命令行選項，包含所有必要的 hidden imports 和資料檔案
+          pyinstaller main.py \
+            --onefile \
+            --clean \
+            $DATA_ARGS \
+            --hidden-import=kivy.core.window.window_sdl2 \
+            --hidden-import=kivy.core.window.window_x11 \
+            --hidden-import=kivy.core.image.img_tex \
+            --hidden-import=kivy.core.image.img_dds \
+            --hidden-import=kivy.core.text.text_layout \
+            --hidden-import=kivy.core.audio.audio_sdl2 \
+            --hidden-import=kivy.input.providers.mouse \
+            --hidden-import=kivy.input.postproc.calibration \
+            --hidden-import=kivy.input.postproc.dejitter \
+            --hidden-import=kivy.input.postproc.doubletap \
+            --hidden-import=kivy.input.postproc.ignorelist \
+            --hidden-import=kivy.input.postproc.retaintouch \
+            --hidden-import=kivy.input.postproc.tripletap \
+            --exclude-module=kivy.core.camera \
+            --exclude-module=kivy.core.spelling \
+            --exclude-module=kivy.core.video
+        fi
+
+    - name: Build with PyInstaller (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        # 設置 Windows 無頭環境變數（使用 mock backend 避免 OpenGL 問題）
+        $env:KIVY_WINDOW = "sdl2"
+        $env:KIVY_GL_BACKEND = "mock"
+        
+        # 構建資料檔案參數
+        $dataArgs = @()
+        
+        # 檢查並添加文本/JSON 檔案
+        if (Test-Path error_codes.txt) {
+          $dataArgs += "--add-data", "error_codes.txt;."
+        }
+        Get-ChildItem *.txt, *.json -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne "error_codes.txt" } | ForEach-Object {
+          $dataArgs += "--add-data", "$($_.Name);."
+        }
+        
+        # 檢查並添加字體檔案
+        if (Test-Path NotoSerifTC-VariableFont_wght.ttf) {
+          $dataArgs += "--add-data", "NotoSerifTC-VariableFont_wght.ttf;."
+        }
+        if (Test-Path fonts) {
+          $dataArgs += "--add-data", "fonts;fonts"
+        }
+        
+        if (Test-Path main.spec) {
+          pyinstaller main.spec --clean
+        } else {
+          $args = @("main.py", "--onefile", "--clean", "--noconsole") + $dataArgs
+          & pyinstaller @args
+        }
+
+    - name: Build with PyInstaller (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        # 設置 macOS 無頭環境
+        export KIVY_WINDOW=sdl2
+        export KIVY_GL_BACKEND=mock
+        export SDL_VIDEODRIVER=dummy
+        
+        # 構建資料檔案參數
+        DATA_ARGS=""
+        
+        # 檢查並添加文本/JSON 檔案
+        if [ -f error_codes.txt ]; then
+          DATA_ARGS="$DATA_ARGS --add-data error_codes.txt:."
+        fi
+        for file in *.txt *.json; do
+          if [ -f "$file" ] && [ "$file" != "error_codes.txt" ]; then
+            DATA_ARGS="$DATA_ARGS --add-data $file:."
+          fi
+        done
+        
+        # 檢查並添加字體檔案
+        if [ -f NotoSerifTC-VariableFont_wght.ttf ]; then
+          DATA_ARGS="$DATA_ARGS --add-data NotoSerifTC-VariableFont_wght.ttf:."
+        fi
+        if [ -d fonts ]; then
+          DATA_ARGS="$DATA_ARGS --add-data fonts:fonts"
+        fi
+        
+        if [ -f main.spec ]; then
+          pyinstaller main.spec --clean
+        else
+          pyinstaller main.py --onefile --clean --noconsole $DATA_ARGS
+        fi
+
+    - name: Rename executable (Linux)
+      if: runner.os == 'Linux'
+      run: mv dist/main dist/main-linux-x64
+
+    - name: Rename executable (macOS)
+      if: runner.os == 'macOS'
+      run: mv dist/main dist/main-macos-x64
+
+    - name: Rename executable (Windows)
+      if: runner.os == 'Windows'
+      run: ${{ matrix.rename_cmd }}
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.platform }}-${{ matrix.arch }}-build
+        path: dist/
+        retention-days: 30
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts/
+
+    - name: Prepare release files
+      run: |
+        mkdir -p release_files
+        # 複製所有平台的可執行檔案到 release_files 目錄
+        find artifacts/ -name "main-*" -type f -exec cp {} release_files/ \;
+        ls -la release_files/
+
+    - name: Set up release variables
+      id: vars
+      run: |
+        if [[ $GITHUB_REF == refs/tags/v* ]]; then
+          echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          echo "release_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          echo "is_prerelease=false" >> $GITHUB_OUTPUT
+        else
+          echo "tag_name=latest" >> $GITHUB_OUTPUT
+          echo "release_name=Latest Development Build" >> $GITHUB_OUTPUT
+          echo "is_prerelease=true" >> $GITHUB_OUTPUT
+        fi
+        echo "commit_sha=${GITHUB_SHA:0:8}" >> $GITHUB_OUTPUT
+
+    - name: Delete existing latest release and tag (if exists)
+      if: steps.vars.outputs.tag_name == 'latest'
+      run: |
+        gh release delete latest --yes || true
+        git push --delete origin latest || true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create/Update latest tag
+      if: steps.vars.outputs.tag_name == 'latest'
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git tag -f latest
+        git push -f origin latest
+
+    - name: Generate release notes
+      id: release_notes
+      run: |
+        if [[ "${{ steps.vars.outputs.tag_name }}" == "latest" ]]; then
+          cat << EOF > release_notes.md
+        ## 最後測試打包版本
+        
+        這個版本是作者更新的最後版本，可能穩定度較低。
+        
+        **Commit:** ${{ steps.vars.outputs.commit_sha }}
+        **Build Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+        
+        ### Available Platforms
+        - Linux x64
+        - Windows x64  
+        - macOS x64
+        
+        > ⚠️ This is a development build and may be unstable.
+        EOF
+        else
+          cat << EOF > release_notes.md
+        ## Release ${{ steps.vars.outputs.tag_name }}
+        
+        **Build Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+        
+        ### Available Platforms
+        - Linux x64
+        - Windows x64
+        - macOS x64
+        
+        ### Changes
+        - Built from commit ${{ steps.vars.outputs.commit_sha }}
+        EOF
+        fi
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.vars.outputs.tag_name }}
+        name: ${{ steps.vars.outputs.release_name }}
+        body_path: release_notes.md
+        files: |
+          release_files/main-linux-x64
+          release_files/main-windows-x64.exe
+          release_files/main-macos-x64
+        prerelease: ${{ steps.vars.outputs.is_prerelease }}
+        make_latest: ${{ steps.vars.outputs.tag_name != 'latest' }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
